@@ -24,6 +24,14 @@ If you don't have specific info about a product or order (e.g. real-time stock o
 
 with st.sidebar:
     st.header("Store Settings")
+
+    api_key = st.text_input(
+        "OpenAI API Key",
+        type="password",
+        placeholder="sk-...",
+        help="Your key is only used for this session and is not stored anywhere."
+    )
+
     store_name = st.text_input("Store name", value="Helix Store")
     system_message = st.text_area("System Prompt", value=DEFAULT_SYSTEM_PROMPT, height=220)
     model_name = st.selectbox("Model", ["gpt-4o", "gpt-4o-mini", "gpt-5.2"], index=0)
@@ -31,7 +39,12 @@ with st.sidebar:
     if st.button("Clear chat"):
         st.session_state.messages = []
 
-chat = ChatOpenAI(model_name=model_name, temperature=temperature)
+# Stop here until the user provides a key
+if not api_key:
+    st.info("👈 Please enter your OpenAI API key in the sidebar to start chatting.")
+    st.stop()
+
+chat = ChatOpenAI(model_name=model_name, temperature=temperature, api_key=api_key)
 
 # Initialize / keep system prompt in sync with sidebar edits
 if "messages" not in st.session_state:
@@ -57,7 +70,11 @@ if user_input:
 
     with st.chat_message("assistant"):
         with st.spinner("Helix is thinking..."):
-            response = chat.invoke(st.session_state.messages)
-            st.write(response.content)
+            try:
+                response = chat.invoke(st.session_state.messages)
+                st.write(response.content)
+            except Exception as e:
+                st.error(f"Something went wrong: {e}")
+                st.stop()
 
     st.session_state.messages.append(AIMessage(content=response.content))
